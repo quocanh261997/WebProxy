@@ -1,0 +1,126 @@
+import socket
+import sys
+import thread
+
+HTTP_PORT = 80
+HOST = ""
+port_num = 2606
+MAX_CONNECTIONS = 1000
+BUFFER_SIZE = 16384
+BAD_URL_HOST = "http://ceclnx01.eas.miamioh.edu/~gomezlin/error.html"
+BAD_CONTENT_HOST = "http://ceclnx01.eas.miamioh.edu/~gomezlin/error2.html"
+SUFFIXES = [".png", ".jpg", ".jpeg", ".js", ".cs", ".gif"]
+BAD_KEYWORD = ["spongebob","britney spears","paris hilton"]
+
+def main():
+    try:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+        server.bind((HOST,port_num))
+        server.listen(MAX_CONNECTIONS)
+        print "Ready to serve, listening at port ", port_num
+    except socket.error, message:
+        print "Failed to connect, error code: ", str(message[0]), ", Error message: ", str(message[1])
+        sys.exit(1)
+    while 1:
+        connection, address = server.accept()
+        thread.start_new_thread(serve_connection, (connection, address))
+    server.close()
+
+def get_url(first_line):
+    url = ""
+    try:
+        url = first_line.split(" ")[1]
+    except IndexError:
+        print "IndexError in line: ", first_line
+    finally:
+        return url
+
+def url_to_web_server(url):
+    http_pos = url.find("://")
+    if http_pos == -1:
+        temp = url
+    else:
+        temp = url[(http_pos+3):]
+    web_server_pos = temp.find("/")
+    if web_server_pos == -1:
+        web_server_pos = len(temp)
+    return temp[:web_server_pos].split(":")[0]
+
+def check_for_content(url):
+    if any (url.endswith(suffix) for suffix in SUFFIXES):
+        return False
+    return True
+
+def contains_keywords(line, keywords):
+    for seq in keywords:
+        if len(seq.split(" "))>1:
+            if all(s in line.lower() for s in seq.split(" ")):
+                return True
+    if any (s in line.lower() for s in keywords):
+        return True
+    return False
+
+def print_info(type, request, address):
+    print address[0], "\t", type.upper(), "\t", request
+
+def redirect_response(url):
+    return "HTTP/1.1 302 Found\r\nLocation: " + url + "\r\nHost: " + url_to_web_server(url) + "\r\nConnection: close\r\n\r\n"
+
+def serve_connection(connection, address):
+    data = connection.recv(BUFFER_SIZE)
+    first_line = data.split("\n")[0]
+    url = get_url(first_line)
+    web_server = url_to_web_server(url)
+    badUrl = False
+
+    if "GET" in first_line:
+        print_info("request", first_line, address)
+        badUrl = contains_keywords(url, BAD_KEYWORD)
+        print badUrl
+        if badUrl:
+            print_info("blacklisted", url, address)
+
+    content_check_needed = check_for_content(url)
+    try:
+        served_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        served_socket.connect((web_server,HTTP_PORT))
+        if badUrl:
+            served_socket.shutdown(socket.SHUT_RDWR)
+            connection.shutdown(socket.SHUT_RD)
+            connection.send(redirect_response(BAD_URL_HOST))
+        else:
+            served_socket.send(data)
+            badContent = False
+            while 1:
+                new_chunk = served_socket.recv(BUFFER_SIZE)
+                if len(new_chunk)>0:
+                    if content_check_needed:
+                        for line in new_chunk.split("\n"):
+                            badContent = contains_keywords(line, BAD_KEYWORD)
+                            if badContent:
+                                print_info("bad content",url, address)
+                                break
+                    if badContent:
+                        served_socket.shutdown(socket.SHUT_RDWR)
+                        connection.shutdown(socket.SHUT_RD)
+                        connection.send(redirect_response(BAD_CONTENT_HOST))
+                    else:
+                        connection.send(new_chunk)
+                else:
+                    break
+        served_socket.close()
+    except socket.error, (value, message):
+        print_info("peer reset", first_line, address)
+    finally:
+        connection.close()
+        print "\t> Connection closed. Thread exiting..."
+        thread.exit()
+
+if __name__ == "__main__":
+    try:
+        print "Forbidden keywords:", BAD_KEYWORD
+        main()
+    except KeyboardInterrupt:
+        print " ---> Caught SIGINT. Stopping server..."
+        sys.exit(1)
