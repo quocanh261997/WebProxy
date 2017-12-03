@@ -42,6 +42,10 @@ with *yourPortNumber* as the port you would like the proxy to serve with. This p
 ## Testing
 * The code can go through every case that the project requires, except the bad content file, since it cannot decode the data and cannot do a check for bad keywords to block it.
 * We have tested with these following pages.
+- http://ceclnx01.eas.miamioh.edu/~gomezlin/goodtest1.txt the proxy did not block this page.
+- http://ceclnx01.eas.miamioh.edu/~gomezlin/goodtest2.html the proxy did not block this page.
+- http://ceclnx01.eas.miamioh.edu/~gomezlin/SpongeBob.html which has bad keywords ("spongebob") in the URL, so the proxy blocks requests for undesirable URL and redirect to the error page.
 - http://www.nick.com/spongebob-squarepants/ which has bad keywords ("spongebob") in the URL, so the proxy blocks requests for undesirable URL and redirect to the error page.
-- http://www.songfacts.com/detail.php?id=467 which has inappropriate content bytes within a Web page, so the proxy detected before it is returned to the user and redirect to the error page.
 * The proxy works with Chrome, Firefox, Safari, and other major browsers.
+* The test does not work when we search the keyword on Google, Wikipedia or Youtube, because both Google and Youtube uses https and our proxy only works with http.
+* Here is the video contains the testing of the proxy: https://youtu.be/dphFxYutDQA

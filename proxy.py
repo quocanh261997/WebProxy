@@ -20,7 +20,7 @@ BUFFER_SIZE = 16384
 BAD_URL_HOST = "http://ceclnx01.eas.miamioh.edu/~gomezlin/error.html"
 BAD_CONTENT_HOST = "http://ceclnx01.eas.miamioh.edu/~gomezlin/error2.html"
 SUFFIXES = [".png", ".jpg", ".jpeg", ".js", ".cs", ".gif"]
-BAD_KEYWORD = ["spongebob","Britney Spears","Paris Hilton"]
+BAD_KEYWORD = ["spongebob", "SpongeBob", "Britney Spears","Paris Hilton"]
 
 #The main function that runs everything
 def main():
@@ -71,14 +71,12 @@ def check_for_content(url):
 
 #Return if the line contains any keyword
 def contains_keywords(line, keywords):
-    keywords.append("badtest")
     for seq in keywords:
         if len(seq.split(" "))>1:
             if all(s in line.lower() for s in seq.split(" ")):
                 return True
     if any (s in line.lower() for s in keywords):
         return True
-    keywords.remove("badtest")
     return False
 
 #Print the info the request to the console
@@ -121,6 +119,7 @@ def serve_connection(connection, address):
             badContent = False
             while 1:
                 new_chunk = served_socket.recv(BUFFER_SIZE)
+                print new_chunk
                 if len(new_chunk)>0:
                     if content_check_needed:
                         for line in new_chunk.split("\n"):
